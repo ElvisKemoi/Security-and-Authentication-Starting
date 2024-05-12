@@ -5,8 +5,8 @@ const ejs = require("ejs");
 const exp = require("constants");
 const app = express();
 const mongoose = require("mongoose");
-const md5 = require("md5");
-
+const bcrypt = require("bcrypt");
+const saltRounds = 10;
 mongoose.connect("mongodb://localhost:27017/userDB");
 
 const userSchema = new mongoose.Schema({
@@ -32,25 +32,29 @@ app.get("/register", (req, res) => {
 	res.render("register");
 });
 
-app.post("/register", async (req, res) => {
-	const newUser = new User({
-		email: req.body.username,
-		password: md5(req.body.password),
+app.post("/register", (req, res) => {
+	bcrypt.hash(req.body.password, saltRounds, async (err, hash) => {
+		if (!err) {
+			const newUser = new User({
+				email: req.body.username,
+				password: hash,
+			});
+			const saveStatus = await newUser.save();
+			res.render("secrets");
+		}
 	});
-	const saveStatus = await newUser.save();
-	res.render("secrets");
 });
 
 app.post("/login", async (req, res) => {
 	const username = req.body.username;
-	const password = md5(req.body.password);
+	const password = req.body.password;
 	const foundUser = await User.findOne({ email: username });
 	if (foundUser) {
-		if (foundUser.password === password) {
-			res.render("secrets");
-		} else {
-			res.redirect("login");
-		}
+		bcrypt.compare(password, foundUser.password, (err, result) => {
+			if (result === true) {
+				res.render("secrets");
+			}
+		});
 	} else {
 		res.redirect("login");
 	}
