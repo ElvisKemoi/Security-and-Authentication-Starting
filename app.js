@@ -8,7 +8,7 @@ const session = require("express-session");
 const passport = require("passport");
 const passportLocalMongoose = require("passport-local-mongoose");
 const GoogleStrategy = require("passport-google-oauth20").Strategy;
-const findOrCreate = require("mongoose-findorcreate");
+// const findOrCreate = require("mongoose-findorcreate");
 
 const app = express();
 
@@ -36,7 +36,7 @@ const userSchema = new mongoose.Schema({
 });
 
 userSchema.plugin(passportLocalMongoose);
-userSchema.plugin(findOrCreate);
+// userSchema.plugin(findOrCreate);
 
 const User = new mongoose.model("User", userSchema);
 passport.use(User.createStrategy());
@@ -75,17 +75,29 @@ passport.use(
 			clientID: process.env.GOOGLE_CLIENT_ID,
 			clientSecret: process.env.GOOGLE_CLIENT_SECRET,
 			callbackURL: "http://localhost:3000/auth/google/secrets",
-			userProfileURL: "https://www.googleapis.com/oauth2/v3/userinfo",
 		},
 		async function (accessToken, refreshToken, profile, cb) {
 			console.log(profile);
 
 			try {
 				let user = await User.findOne({ googleId: profile.id });
+				console.log(user);
 				if (!user) {
-					user = await User.create({ googleId: profile.id });
+					const newser = new User({
+						googleId: profile.id,
+					});
+					try {
+						const saveStatus = await newser.save();
+						console.log(saveStatus);
+						return cb(null, newser);
+					} catch (error) {
+						// Handle error here, perhaps by logging it
+						console.error("Error occurred while saving user:", error);
+						// You might want to return an error response or do some other error handling
+						return cb(error); // Assuming cb is a callback function to handle errors
+					}
 				}
-				return cb(null, user);
+				// return cb(null, user);
 			} catch (err) {
 				return cb(err, null);
 			}
